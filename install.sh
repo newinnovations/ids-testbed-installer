@@ -3,6 +3,8 @@
 # Install script for IDSA IDS-Testbed
 #
 # Martin van der Werff (martin.vanderwerff (at) tno.nl)
+#
+# Compatible with commit 6c216c31488d2afcad6984202dbf9aecb5373714 (Thu Dec 2 15:25:04 2021 +0100)
 
 export TB_GIT=${HOME}/IDS-testbed
 export TB_DIR=${HOME}/MyTestbed
