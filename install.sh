@@ -4,20 +4,38 @@
 #
 # Martin van der Werff (martin.vanderwerff (at) tno.nl)
 #
-# Compatible with commit 6c216c31488d2afcad6984202dbf9aecb5373714 (Thu Dec 2 15:25:04 2021 +0100)
+# Compatible with commit c7e1130d08b99ce55ecca011897a0976c3f5c3dd (Wed Jan 26 10:04:42 2022 +0100)
 
 export TB_GIT=${HOME}/IDS-testbed
-export TB_DIR=${HOME}/MyTestbed
 export TB_COUNTRY=NL
 export TB_ORGANIZATION=TNO
 
-INSTALL_REQUIREMENTS=1
+export TB_NETWORK=testbed
+
+INSTALL_REQUIREMENTS=0
 FORCE_REINSTALL=0
 
 # ---------------------------------------------------------------------------------
 
+function run() {
+	INSTANCE="$1"
+	IMAGE="$2"
+	TITLE="$3"
+	COMMAND="$4"
+	if [ ! "$(docker ps -q -f name=${INSTANCE})" ]; then
+		if [ "$(docker ps -aq -f status=exited -f name=${INSTANCE})" ]; then
+			echo "Removing stale ${TITLE}"
+			docker rm ${INSTANCE} > /dev/null
+		fi
+		echo "Starting ${TITLE}"
+		gnome-terminal --title "${TITLE}" -- sh -c "docker run --name ${INSTANCE} ${COMMAND} --network=${TB_NETWORK} ${IMAGE}"
+	else
+		echo "${TITLE} already running"
+	fi
+}
+
 function client_id() {
-	local CERT="$(openssl x509 -in "${TB_DIR}/CertificationAuthority/data/cert/$1.cert" -text)"
+	local CERT="$(openssl x509 -in "${TB_GIT}/CertificateAuthority/data/cert/$1.crt" -text)"
 	local SKI="$(echo "$CERT" | grep -A1 "Subject Key Identifier" | tail -n 1 | tr -d ' ')"
 	local AKI="$(echo "$CERT" | grep -A1 "Authority Key Identifier" | tail -n 1 | tr -d ' ')"
 	echo "$SKI:$AKI"
@@ -36,7 +54,7 @@ require 'json'
 CLIENTNAME = "$CLIENT_NAME"
 CLIENTID = "$CLIENT_ID" 
 # Only for debugging!
-filename = "$TB_DIR/CertificationAuthority/data/cert/$CLIENT_NAME.key"
+filename = "$TB_GIT/CertificateAuthority/data/cert/$CLIENT_NAME.key"
 client_rsa_key = OpenSSL::PKey::RSA.new File.read(filename)
 payload = {
   'iss' => CLIENTID,
@@ -106,18 +124,16 @@ if [ "x$INSTALL_REQUIREMENTS" == "x1" ]; then
 	mvn -version
 	echo "-------------------------------------------------------------------------------- "
 
-	docker network create testbed
+	docker network create "$TB_NETWORK"
 fi
 
 # ---------------------------------------------------------------------------------
 
-mkdir -p ${TB_DIR}
-
 if [ "x$FORCE_REINSTALL" == "x1" ]; then
-	# Remove directories to force re-install
-	rm -fr ${TB_DIR}/CertificationAuthority
-	rm -fr ${TB_DIR}/OmejdnDAPS
-	rm -fr ${TB_DIR}/DataspaceConnector
+	docker image rm -f daps
+	docker image rm -f dsca
+	docker image rm -f dscb
+
 fi
 
 # Optain with: jrunscript -e 'java.lang.System.out.println(java.lang.System.getProperty("java.home"));'
@@ -125,103 +141,67 @@ export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
 # ---------------------------------------------------------------------------------
 
-
-if [ ! -d ${TB_DIR}/CertificationAuthority ]; then
-
-	cd ${TB_DIR}
-	unzip ${TB_GIT}/Testbed/CertificationAuthority/CertificationAuthority.zip
-	cd CertificationAuthority
-	chmod a+x *.py
-
-	./pki.py init
-	./pki.py ca create --common-name "Testbed CA" --algo "rsa" --bits "2048" --country-name "${TB_COUNTRY}" --organization-name "${TB_ORGANIZATION}"
-	./pki.py subca create --CA "Testbed CA" --common-name "Testbed SubCA" --algo "rsa" --bits "2048" --country-name "${TB_COUNTRY}" --organization-name "${TB_ORGANIZATION}"
-	./pki.py cert create --subCA "Testbed SubCA" --common-name "TestbedCert" --algo "rsa" --bits "2048" --country-name "${TB_COUNTRY}" --organization-name "${TB_ORGANIZATION}" --client --server
-	./pki.py cert create --subCA "Testbed SubCA" --common-name "TestbedCert2" --algo "rsa" --bits "2048" --country-name "${TB_COUNTRY}" --organization-name "${TB_ORGANIZATION}" --client --server
-	cd data/cert
-	openssl pkcs12 -export -out TestbedCert.p12 -inkey TestbedCert.key -in TestbedCert.crt -passout pass:password
-	openssl pkcs12 -in TestbedCert.p12 -out TestbedCert.cert -nokeys -nodes -passin pass:password
-	openssl pkcs12 -export -out TestbedCert2.p12 -inkey TestbedCert2.key -in TestbedCert2.crt -passout pass:password
-	openssl pkcs12 -in TestbedCert2.p12 -out TestbedCert2.cert -nokeys -nodes -passin pass:password
-	ls -l ${TB_DIR}/CertificationAuthority/data/*/*
-fi
-
-# ---------------------------------------------------------------------------------
-
-if [ ! -d ${TB_DIR}/OmejdnDAPS ]; then
-
-	cd ${TB_DIR}
-	unzip ${TB_GIT}/Testbed/OmejdnDAPS/OmejdnDAPS.zip
-	cd OmejdnDAPS
-
-	cp ${TB_DIR}/CertificationAuthority/data/cert/*.cert ./keys/.
-
-	ID=$(client_id "TestbedCert")
-	sed -i "2s,testClient,${ID}," config/clients.yml
-	sed -i "8s,testClient,TestbedCert.cert," config/clients.yml
-
-	ID=$(client_id "TestbedCert2")
-	sed -i "9s,testClient2,${ID}," config/clients.yml
-	sed -i "15s,testClient2,TestbedCert2.cert," config/clients.yml
-
-	sed -i '2s,http://localhost:4567,idsc:IDS_CONNECTORS_ALL,' config/omejdn.yml
-	sed -i '8s,TestServer,idsc:IDS_CONNECTORS_ALL,' config/omejdn.yml
-
+if docker images | grep -q daps; then
+	echo "DAPS available as docker image"
+else
+	echo "Building DAPS docker image"
+	cd ${TB_GIT}/OmejdnDAPS
 	docker build -t daps .
-
-	if [ "$(docker ps -q -f name=omejdn)" ]; then
-		docker stop omejdn
-	fi
-
-	if [ "$(docker ps -aq -f status=exited -f name=omejdn)" ]; then
-		docker rm omejdn
-	fi
-
-	docker run -d --name omejdn -p 4567:4567 -v $PWD/config:/opt/config -v $PWD/keys:/opt/keys --network=testbed daps
-else
-	docker start omejdn
 fi
 
-# ---------------------------------------------------------------------------------
-
-if [ ! -d ${TB_DIR}/DataspaceConnector ]; then
-
-	cd ${TB_DIR}
-	unzip ${TB_GIT}/Testbed/DataspaceConnector/DataspaceConnector.zip
-	cd DataspaceConnector
-
-	#mvn clean package
-
-	cp ${TB_DIR}/CertificationAuthority/data/cert/TestbedCert.p12 ./src/main/resources/conf/.
-
-	sed -i '59s,localhost,omejdn,' ./src/main/resources/application.properties
-	sed -i '60s,localhost,omejdn,' ./src/main/resources/application.properties
-	sed -i '12s,TEST_DEPLOYMENT,PRODUCTIVE_DEPLOYMENT,' ./src/main/resources/conf/config.json
-	sed -i '60s,keystore-localhost.p12,TestbedCert.p12,' ./src/main/resources/conf/config.json
-
-	docker build -t dsc .
-
-	if [ "$(docker ps -q -f name=dsccontainer)" ]; then
-		docker stop dsccontainer
-	fi
-
-	if [ "$(docker ps -aq -f status=exited -f name=dsccontainer)" ]; then
-		docker rm dsccontainer
-	fi
-
-	docker run -d --name dsccontainer -p 8080:8080 --network=testbed dsc
-
+if docker images | grep -q dsca; then
+	echo "Connector A available as docker image"
 else
-	docker start dsccontainer
+	echo "Building Connector A docker image"
+	cd ${TB_GIT}/DataspaceConnectorA
+	docker build -t dsca .
 fi
+
+if docker images | grep -q dscb; then
+	echo "Connector B available as docker image"
+else
+	echo "Building Connector B docker image"
+	cd ${TB_GIT}/DataspaceConnectorB
+	docker build -t dscb .
+fi
+
+# Check if the required images are available in the local system
+if [ "$(docker images -q registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-reverseproxy)" == "" ]; then
+# If the images are no available, pull them
+    cd ${TB_GIT}/MetadataBroker/docker/composefiles/broker-localhost
+    docker-compose pull
+# The testbed requires local changes. Remove the pulled "core" image
+    docker rmi registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core
+# Build a local "core" image with the correct changes
+    cd ../../broker-core
+    docker build -t registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core .
+# Launch the component
+    cd ../composefiles/broker-localhost
+    gnome-terminal --title "BROKER" -e "docker-compose up"
+fi
+
+
+run "omejdn" "daps" "DAPS" "-p 4567:4567 -v ${TB_GIT}/OmejdnDAPS/config:/opt/config -v ${TB_GIT}/OmejdnDAPS/keys:/opt/keys"
+run "connectora" "dsca" "CONNECTOR A" "-p 8080:8080"
+run "connectorb" "dscb" "CONNECTOR B" "-p 8081:8081"
 
 while : ; do
 	curl -k -s "https://localhost:8080" > /dev/null
 	if [ $? -eq 0 ]; then
-		echo "Dataspace connector is available"
+		echo "Dataspace connector A is available"
 		break;
 	fi
-	echo "Waiting for Dataspace connector to be available"
+	echo "Waiting for Dataspace connector A to be available"
+	sleep 1
+done
+
+while : ; do
+	curl -k -s "https://localhost:8081" > /dev/null
+	if [ $? -eq 0 ]; then
+		echo "Dataspace connector B is available"
+		break;
+	fi
+	echo "Waiting for Dataspace connector B to be available"
 	sleep 1
 done
 
@@ -229,12 +209,14 @@ done
 
 sleep 2
 
-test_daps "TestbedCert"
-test_daps "TestbedCert2"
+test_daps "testbed1"
+test_daps "testbed2"
 
 
 echo
-echo "Testing DAT in Dataspace Connector"
+echo "Testing DAT in Dataspace Connectors"
 
-curl -X 'POST' 'https://localhost:8080/api/ids/connector/update?recipient=https%3A%2F%2Ftno.nl' -H 'accept: */*' -d '' -u admin:password --insecure -# > /dev/null
-docker logs dsccontainer | grep 'Dynamic Attribute Token' | tail -2
+curl -X 'POST' 'https://localhost:8080/api/ids/connector/update?recipient=https%3A%2F%2Fgoogle.com' -H 'accept: */*' -d '' -u admin:password --insecure -# > /dev/null
+docker logs connectora | grep 'DAT' | tail -2
+curl -X 'POST' 'https://localhost:8081/api/ids/connector/update?recipient=https%3A%2F%2Fgoogle.com' -H 'accept: */*' -d '' -u admin:password --insecure -# > /dev/null
+docker logs connectora | grep 'DAT' | tail -2
