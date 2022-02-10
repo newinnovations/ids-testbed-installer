@@ -13,7 +13,7 @@ export TB_ORGANIZATION=TNO
 export TB_NETWORK=testbed
 
 INSTALL_REQUIREMENTS=0
-FORCE_REINSTALL=0
+FORCE_REINSTALL=1
 
 # ---------------------------------------------------------------------------------
 
@@ -219,4 +219,4 @@ echo "Testing DAT in Dataspace Connectors"
 curl -X 'POST' 'https://localhost:8080/api/ids/connector/update?recipient=https%3A%2F%2Fgoogle.com' -H 'accept: */*' -d '' -u admin:password --insecure -# > /dev/null
 docker logs connectora | grep 'DAT' | tail -2
 curl -X 'POST' 'https://localhost:8081/api/ids/connector/update?recipient=https%3A%2F%2Fgoogle.com' -H 'accept: */*' -d '' -u admin:password --insecure -# > /dev/null
-docker logs connectora | grep 'DAT' | tail -2
+docker logs connectorb | grep 'DAT' | tail -2
