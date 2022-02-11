@@ -1,10 +1,10 @@
 #!/bin/bash
 
-export TB_GIT=${HOME}/IDS-testbed
+export PWD="$(dirname $(readlink -f $0))"
 
 docker stop omejdn
 docker stop connectora
 docker stop connectorb
 
-cd ${TB_GIT}/MetadataBroker/docker/composefiles/broker-localhost
+cd "${PWD}/config/broker-localhost"
 docker-compose down

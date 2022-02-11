@@ -4,13 +4,16 @@
 #
 # Martin van der Werff (martin.vanderwerff (at) tno.nl)
 #
-# Compatible with commit c7e1130d08b99ce55ecca011897a0976c3f5c3dd (Wed Jan 26 10:04:42 2022 +0100)
+# Compatible with commit 382e19308720b386b7268c4e72c0ef0319948027 (Tue Feb 1 11:29:53 2022 +0100)
 
-export TB_GIT=${HOME}/IDS-testbed
+
+export TB_GIT="${HOME}/IDS-testbed"
+export PWD="$(dirname $(readlink -f $0))"
 export TB_COUNTRY=NL
 export TB_ORGANIZATION=TNO
 
-export TB_NETWORK=testbed
+#export TB_NETWORK=testbed
+export TB_NETWORK=broker-localhost_default
 
 INSTALL_REQUIREMENTS=0
 FORCE_REINSTALL=1
@@ -23,7 +26,7 @@ function run() {
 	TITLE="$3"
 	COMMAND="$4"
 	if [ ! "$(docker ps -q -f name=${INSTANCE})" ]; then
-		if [ "$(docker ps -aq -f status=exited -f name=${INSTANCE})" ]; then
+		if [ "$(docker ps -aq -f name=${INSTANCE})" ]; then
 			echo "Removing stale ${TITLE}"
 			docker rm ${INSTANCE} > /dev/null
 		fi
@@ -133,7 +136,9 @@ if [ "x$FORCE_REINSTALL" == "x1" ]; then
 	docker image rm -f daps
 	docker image rm -f dsca
 	docker image rm -f dscb
-
+	docker image rm -f registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core
+	docker image rm -f registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/fuseki
+	docker image rm -f registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/reverseproxy
 fi
 
 # Optain with: jrunscript -e 'java.lang.System.out.println(java.lang.System.getProperty("java.home"));'
@@ -166,24 +171,37 @@ else
 fi
 
 # Check if the required images are available in the local system
-if [ "$(docker images -q registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-reverseproxy)" == "" ]; then
-# If the images are no available, pull them
-    cd ${TB_GIT}/MetadataBroker/docker/composefiles/broker-localhost
-    docker-compose pull
+if [ "$(docker images -q registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/reverseproxy)" == "" ]; then
+# If the images are not available, pull them
+	cd ${TB_GIT}/MetadataBroker/docker/composefiles/broker-localhost
+	docker-compose pull
 # The testbed requires local changes. Remove the pulled "core" image
-    docker rmi registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core
+	docker rmi registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core
 # Build a local "core" image with the correct changes
-    cd ../../broker-core
-    docker build -t registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core .
-# Launch the component
-    cd ../composefiles/broker-localhost
-    gnome-terminal --title "BROKER" -e "docker-compose up"
+	cd ../../broker-core
+	docker build -t registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core .
+else
+	echo "Metadata broker available as docker images"
 fi
 
 
+# Start DAPS
 run "omejdn" "daps" "DAPS" "-p 4567:4567 -v ${TB_GIT}/OmejdnDAPS/config:/opt/config -v ${TB_GIT}/OmejdnDAPS/keys:/opt/keys"
+# Start Connector A
 run "connectora" "dsca" "CONNECTOR A" "-p 8080:8080"
+# Start Connector B
 run "connectorb" "dscb" "CONNECTOR B" "-p 8081:8081"
+# Start Broker
+echo "Starting BROKER"
+BROKER=broker-localhost
+mkdir -p "${PWD}/config/${BROKER}"
+cp "${TB_GIT}/MetadataBroker/docker/composefiles/broker-localhost/docker-compose.yml" "${PWD}/config/${BROKER}/docker-compose.yml"
+#echo >> "${PWD}/config/${BROKER}/docker-compose.yml"
+#echo "networks:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+#echo "  default:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+#echo "    external: true" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+#echo "    name: ${TB_NETWORK}" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+gnome-terminal --title "BROKER" -- sh -c "cd ${PWD}/config/${BROKER}; docker-compose up"
 
 while : ; do
 	curl -k -s "https://localhost:8080" > /dev/null
