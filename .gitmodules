@@ -1,0 +1,3 @@
+[submodule "IDS-testbed"]
+	path = IDS-testbed
+	url = https://github.com/International-Data-Spaces-Association/IDS-testbed.git

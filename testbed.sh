@@ -6,15 +6,19 @@
 #
 # Compatible with commit 4e651853149f13c02cec88710134a416bcb23f53 (Wed Feb 16 17:03:10 2022 +0100)
 
+echo
+echo "d888888b d8b   db  .d88b."
+echo "\`~~88~~' 888o  88 .8P  Y8."
+echo "   88    88V8o 88 88    88   Netherlands Organisation for Applied Scientific Research"
+echo "   88    88 V8o88 88    88"
+echo "   88    88  V888 \`8b  d8'               IDSA TESTBED CONTROL SCRIPT"
+echo "   YP    VP   V8P  \`Y88P'"
+echo
+
+function bar() {
+	echo "-------------------------------------------------------------------------------------"
+}
 function usage() {
-	echo
-	echo "d888888b d8b   db  .d88b."
-	echo "\`~~88~~' 888o  88 .8P  Y8."
-	echo "   88    88V8o 88 88    88   Netherlands Organisation for Applied Scientific Research"
-	echo "   88    88 V8o88 88    88"
-	echo "   88    88  V888 \`8b  d8'               IDSA TESTBED CONTROL SCRIPT"
-	echo "   YP    VP   V8P  \`Y88P'"
-	echo
 	echo "Usage:"
 	echo
 	echo "  ./testbed.sh [options] start|stop|clean"
@@ -41,12 +45,16 @@ function usage() {
 	echo
 }
 
-export TB_GIT="${HOME}/IDS-testbed"
 export PWD="$(dirname $(readlink -f $0))"
+export TB_GIT="${PWD}/IDS-testbed"
+
 export TB_COUNTRY=NL
 export TB_ORGANIZATION=TNO
+export TB_NETWORK=ids-testbed
 
-export TB_NETWORK=broker-localhost_default
+cd $PWD
+git submodule init
+git submodule update
 
 INSTALL_REQUIREMENTS=0
 TEST=0
@@ -84,12 +92,12 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-echo "--------------------------------------------------------"
+bar
 echo "INSTALL REQUIREMENTS = ${INSTALL_REQUIREMENTS}"
 echo "TEST                 = ${TEST}"
 echo "PRUNE                = ${CLEAN_PRUNE}"
 echo "OPERATION            = ${OPERATION}"
-echo "--------------------------------------------------------"
+bar
 
 function run() {
 	INSTANCE="$1"
@@ -190,13 +198,13 @@ if [ "x$INSTALL_REQUIREMENTS" == "x1" ]; then
 
 
 
-	echo "-------------------------------------------------------------------------------- "
+	bar
 	lsb_release -a
 	docker version
 	docker-compose version
 	java -version
 	mvn -version
-	echo "-------------------------------------------------------------------------------- "
+	bar
 
 fi
 
@@ -298,7 +306,7 @@ if [[ "$OPERATION" == "start" ]]; then
 		docker network create "$TB_NETWORK"
 	fi
 
-	echo "--------------------------------------------------------"
+	bar
 
 	# Start DAPS
 	run "omejdn" "daps" "DAPS" "-p 4567:4567 -v ${TB_GIT}/OmejdnDAPS/config:/opt/config -v ${TB_GIT}/OmejdnDAPS/keys:/opt/keys"
@@ -312,11 +320,12 @@ if [[ "$OPERATION" == "start" ]]; then
 		BROKER=broker-localhost
 		mkdir -p "${PWD}/config/${BROKER}"
 		cp "${TB_GIT}/MetadataBroker/docker/composefiles/broker-localhost/docker-compose.yml" "${PWD}/config/${BROKER}/docker-compose.yml"
-		#echo >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		#echo "networks:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		#echo "  default:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		#echo "    external: true" >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		#echo "    name: ${TB_NETWORK}" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+		sed -i "s/version: '3'/version: '3.7'/" "${PWD}/config/${BROKER}/docker-compose.yml"
+		echo >> "${PWD}/config/${BROKER}/docker-compose.yml"
+		echo "networks:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+		echo "  default:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+		echo "    external: true" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+		echo "    name: ${TB_NETWORK}" >> "${PWD}/config/${BROKER}/docker-compose.yml"
 		gnome-terminal --title "BROKER" -- sh -c "cd ${PWD}/config/${BROKER}; docker-compose up"
 	else
 		echo "BROKER already running"
@@ -326,7 +335,7 @@ fi
 
 if [[ "$OPERATION" == "start" && "$TEST" == "1" ]]; then
 
-	echo "--------------------------------------------------------"
+	bar
 
 	while : ; do
 		curl -k -s "https://localhost:8080" > /dev/null
@@ -354,7 +363,7 @@ if [[ "$OPERATION" == "start" && "$TEST" == "1" ]]; then
 	if ! docker images | grep -q postman/newman; then
 		docker pull postman/newman
 	fi
-	docker rm newman > /dev/null
+	docker rm newman > /dev/null 2>&1
 	docker run --rm --network=host --name newman -t postman/newman run "https://raw.githubusercontent.com/International-Data-Spaces-Association/IDS-testbed/master/TestbedPreconfiguration.postman_collection.json"
 
 fi
