@@ -26,7 +26,7 @@ function usage() {
 	echo
 	echo "  start (default)"
 	echo
-	echo "    Builds testbed component docker images (when not available) and starts testbed"
+	echo "    Builds testbed component docker images (if not available) and starts testbed"
 	echo
 	echo "    -r --install-requirements  install required ubuntu packages"
 	echo "    -t --test                  run tests"
@@ -39,7 +39,7 @@ function usage() {
 	echo
 	echo "  clean"
 	echo
-	echo "    Stops testbed (when running) and removes all testbed component images"
+	echo "    Stops testbed (if running) and removes all testbed component images"
 	echo
 	echo "    -p --prune                 removes all your unused docker images"
 	echo
@@ -364,6 +364,6 @@ if [[ "$OPERATION" == "start" && "$TEST" == "1" ]]; then
 		docker pull postman/newman
 	fi
 	docker rm newman > /dev/null 2>&1
-	docker run --rm --network=host --name newman -t postman/newman run "https://raw.githubusercontent.com/International-Data-Spaces-Association/IDS-testbed/master/TestbedPreconfiguration.postman_collection.json"
+	docker run --rm --network=host --name newman -v ${TB_GIT}:/etc/newman -t postman/newman run TestbedPreconfiguration.postman_collection.json
 
 fi
