@@ -3,8 +3,6 @@
 # Control script for IDSA IDS-Testbed
 #
 # Martin van der Werff (martin.vanderwerff (at) tno.nl)
-#
-# Compatible with commit 4e651853149f13c02cec88710134a416bcb23f53 (Wed Feb 16 17:03:10 2022 +0100)
 
 echo
 echo "d888888b d8b   db  .d88b."
@@ -19,6 +17,7 @@ function bar() {
 	echo "-------------------------------------------------------------------------------------"
 }
 function usage() {
+	echo
 	echo "Usage:"
 	echo
 	echo "  ./testbed.sh [options] start|stop|clean"
@@ -29,12 +28,19 @@ function usage() {
 	echo "    Builds testbed component docker images (if not available) and starts testbed"
 	echo
 	echo "    -r --install-requirements  install required ubuntu packages"
-	echo "    -t --test                  run tests"
+	echo "    -t --test                  run full test (otherwise only do 'Preconfiguration')"
 	echo
 	echo
 	echo "  stop"
 	echo
 	echo "    Stops testbed"
+	echo
+	echo
+	echo "  tsg"
+	echo
+	echo "    Start TNO Secure Gateway (TSG)"
+	echo
+	echo "    -t --test                  run tests"
 	echo
 	echo
 	echo "  clean"
@@ -51,6 +57,8 @@ export TB_GIT="${PWD}/IDS-testbed"
 export TB_COUNTRY=NL
 export TB_ORGANIZATION=TNO
 export TB_NETWORK=ids-testbed
+
+export TSG="docker.nexus.dataspac.es/core-container:feature-infomodel-4.2.7"
 
 cd $PWD
 git submodule init
@@ -75,7 +83,7 @@ while [[ $# -gt 0 ]]; do
 			CLEAN_PRUNE=1
 			shift
 			;;
-		start|stop|clean)
+		start|stop|clean|tsg)
 			OPERATION="$1"
 			shift
 			;;
@@ -104,13 +112,15 @@ function run() {
 	IMAGE="$2"
 	TITLE="$3"
 	COMMAND="$4"
+	NETWORK="$5"
 	if [ ! "$(docker ps -q -f name=${INSTANCE})" ]; then
 		if [ "$(docker ps -aq -f name=${INSTANCE})" ]; then
 			echo "Removing stale ${TITLE}"
 			docker rm ${INSTANCE} > /dev/null
 		fi
 		echo "Starting ${TITLE}"
-		gnome-terminal --title "${TITLE}" -- sh -c "docker run --name ${INSTANCE} ${COMMAND} --network=${TB_NETWORK} ${IMAGE}"
+		gnome-terminal --title "${TITLE}" -- sh -c "docker run --rm --name ${INSTANCE} ${COMMAND} --network=${NETWORK} ${IMAGE}"
+		#gnome-terminal --title "${TITLE}" -- sh -c "docker run --rm --name ${INSTANCE} ${COMMAND} --network=${NETWORK} ${IMAGE}; sleep 30"
 	else
 		echo "${TITLE} already running"
 	fi
@@ -219,6 +229,8 @@ if [[ "$OPERATION" == "stop" || "$OPERATION" == "clean" ]]; then
 	docker stop connectora
 	docker stop connectorb
 
+	docker stop tsg
+
 	cd "${PWD}/config/broker-localhost"
 	docker-compose down
 fi
@@ -239,6 +251,7 @@ if [[ "$OPERATION" == "clean" ]]; then
 	docker image rm -f registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core
 	docker image rm -f registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/fuseki
 	docker image rm -f registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/reverseproxy
+	docker image rm -f ${TSG}
 	docker image rm -f postman/newman
 
 	if [[ "$CLEAN_PRUNE" == "1" ]]; then
@@ -309,11 +322,11 @@ if [[ "$OPERATION" == "start" ]]; then
 	bar
 
 	# Start DAPS
-	run "omejdn" "daps" "DAPS" "-p 4567:4567 -v ${TB_GIT}/OmejdnDAPS/config:/opt/config -v ${TB_GIT}/OmejdnDAPS/keys:/opt/keys"
+	run "omejdn" "daps" "DAPS" "-p 4567:4567 -v ${TB_GIT}/OmejdnDAPS/config:/opt/config -v ${TB_GIT}/OmejdnDAPS/keys:/opt/keys" "${TB_NETWORK}"
 	# Start Connector A
-	run "connectora" "dsca" "CONNECTOR A" "-p 8080:8080"
+	run "connectora" "dsca" "CONNECTOR A" "-p 8080:8080" "${TB_NETWORK}"
 	# Start Connector B
-	run "connectorb" "dscb" "CONNECTOR B" "-p 8081:8081"
+	run "connectorb" "dscb" "CONNECTOR B" "-p 8081:8081" "${TB_NETWORK}"
 	# Start Broker
 	if [ ! "$(docker ps -q -f name=broker-core)" ]; then
 		echo "Starting BROKER"
@@ -331,39 +344,105 @@ if [[ "$OPERATION" == "start" ]]; then
 		echo "BROKER already running"
 	fi
 
-fi
-
-if [[ "$OPERATION" == "start" && "$TEST" == "1" ]]; then
-
-	bar
-
-	while : ; do
-		curl -k -s "https://localhost:8080" > /dev/null
-		if [ $? -eq 0 ]; then
-			echo "Dataspace connector A is available"
-			break;
-		fi
-		echo "Waiting for Dataspace connector A to be available"
-		sleep 1
-	done
-
-	while : ; do
-		curl -k -s "https://localhost:8081" > /dev/null
-		if [ $? -eq 0 ]; then
-			echo "Dataspace connector B is available"
-			break;
-		fi
-		echo "Waiting for Dataspace connector B to be available"
-		sleep 1
-	done
-
-	test_daps "testbed1"
-	test_daps "testbed2"
-
 	if ! docker images | grep -q postman/newman; then
 		docker pull postman/newman
 	fi
 	docker rm newman > /dev/null 2>&1
-	docker run --rm --network=host --name newman -v ${TB_GIT}:/etc/newman -t postman/newman run TestbedPreconfiguration.postman_collection.json
 
+	bar
+
+	echo "Waiting for Dataspace connector A to be available"
+	while : ; do
+		echo -n "."
+		curl -k -s "https://localhost:8080" > /dev/null
+		if [ $? -eq 0 ]; then
+			echo
+			echo "Dataspace connector A is available"
+			break;
+		fi
+		sleep 1
+	done
+
+	echo
+
+	echo "Waiting for Dataspace connector B to be available"
+	while : ; do
+		echo -n "."
+		curl -k -s "https://localhost:8081" > /dev/null
+		if [ $? -eq 0 ]; then
+			echo
+			echo "Dataspace connector B is available"
+			break;
+		fi
+		sleep 1
+	done
+
+	bar
+
+	if [[ "$TEST" == "1" ]]; then
+
+		test_daps "testbed1"
+		test_daps "testbed2"
+
+		docker run --rm --network=host --name newman -v ${TB_GIT}:/etc/newman -t postman/newman run TestbedPreconfiguration.postman_collection.json
+
+	else
+
+		docker run --rm --network=host --name newman -v ${TB_GIT}:/etc/newman -t postman/newman run TestbedPreconfiguration.postman_collection.json --folder Preconfiguration
+
+	fi
+
+fi
+
+if [[ "$OPERATION" == "tsg" ]]; then
+
+	if docker images | grep -q core-container; then
+		echo "TSG already available as docker image"
+	else
+		echo "Pulling docker image"
+		docker pull ${TSG}
+	fi
+
+	run "tsg" "${TSG}" "TNO Secure Gateway" "-v ${PWD}/tsg:/config -p 8082:8082 -p 8083:8083" "${TB_NETWORK}"
+fi
+
+if [[ "$OPERATION" == "tsg" && "$TEST" == "1" ]]; then
+
+	bar
+
+	echo "Waiting for TNO Secure Gateway to be available"
+	while : ; do
+		echo -n "."
+		curl -k -s "http://localhost:8082/health" > /dev/null
+		if [ $? -eq 0 ]; then
+			echo
+			echo "TNO Secure Gateway is available"
+			break;
+		fi
+		sleep 1
+	done
+
+	echo
+
+	echo "Awaiting broker registration"
+	while : ; do
+		echo -n "."
+		docker logs tsg 2>&1 | grep -q 'Successful Broker registration'
+		if [ $? -eq 0 ]; then
+			echo
+			echo "TNO Secure Gateway registered with broker"
+			break;
+		fi
+		sleep 1
+	done
+
+	bar
+
+	if ! docker images | grep -q postman/newman; then
+		docker pull postman/newman
+	fi
+
+	#docker rm newman > /dev/null 2>&1
+	#docker run --rm --network=host --name newman -v ${TB_GIT}:/etc/newman -t postman/newman run TestbedPreconfiguration.postman_collection.json --folder Preconfiguration
+	docker run --rm --network=host --name newman -v ${PWD}/tsg:/etc/newman -t postman/newman run 'IDSA Testbed - TSG.postman_collection.json'
 fi

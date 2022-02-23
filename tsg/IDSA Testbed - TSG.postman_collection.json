@@ -1,0 +1,430 @@
+{
+	"info": {
+		"_postman_id": "1f8fcc35-8b27-465a-aecd-0bb728c8a6d5",
+		"name": "IDSA Testbed - TSG",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "4. Interacting with Connectors",
+			"item": [
+				{
+					"name": "4.1. Request Self-descriptions from Available Connectors",
+					"item": [
+						{
+							"name": "4.1.1 - Connector A",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"pm.test(\"Check connector @id\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData[\"@id\"]).to.eql(\"https://connector_A\");",
+											"});",
+											"pm.test(\"Extract resourceCatalog @id\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"connector_A_resourceCatalog_id\", jsonData[\"ids:resourceCatalog\"][0][\"@id\"]);",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "default"
+									}
+								],
+								"url": {
+									"raw": "{{TSG_API}}/description?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data",
+									"host": [
+										"{{TSG_API}}"
+									],
+									"path": [
+										"description"
+									],
+									"query": [
+										{
+											"key": "connectorId",
+											"value": "https://connector_A"
+										},
+										{
+											"key": "accessUrl",
+											"value": "https://connectora:8080/api/ids/data"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "4.1.2 - Connector B",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"pm.test(\"Check connector @id\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData[\"@id\"]).to.eql(\"https://connector_B\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "default"
+									}
+								],
+								"url": {
+									"raw": "{{TSG_API}}/description?connectorId=https://connector_B&accessUrl=https://connectorb:8081/api/ids/data",
+									"host": [
+										"{{TSG_API}}"
+									],
+									"path": [
+										"description"
+									],
+									"query": [
+										{
+											"key": "connectorId",
+											"value": "https://connector_B"
+										},
+										{
+											"key": "accessUrl",
+											"value": "https://connectorb:8081/api/ids/data"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "4.2. Request Data from Available Connectors",
+					"item": [
+						{
+							"name": "4.2.1 - Connector A - Get resourceCatalog",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"pm.test(\"Retrieve resource metadata\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"resourceId\", jsonData[\"ids:offeredResource\"][0][\"@id\"]);",
+											"    pm.collectionVariables.set(\"artifactId\", jsonData[\"ids:offeredResource\"][0][\"ids:representation\"][0][\"ids:instance\"][0][\"@id\"]);",
+											"    var contractOffer = jsonData[\"ids:offeredResource\"][0][\"ids:contractOffer\"][0];",
+											"    contractOffer[\"ids:permission\"] = ",
+											"        contractOffer[\"ids:permission\"].map(permission => {",
+											"            permission[\"ids:target\"] = jsonData[\"ids:offeredResource\"][0][\"ids:representation\"][0][\"ids:instance\"][0][\"@id\"];",
+											"            return permission;",
+											"        });",
+											"    pm.collectionVariables.set(\"contractOffer\", JSON.stringify(contractOffer));",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "default"
+									}
+								],
+								"url": {
+									"raw": "{{TSG_API}}/description?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data&requestedElement={{connector_A_resourceCatalog_id}}",
+									"host": [
+										"{{TSG_API}}"
+									],
+									"path": [
+										"description"
+									],
+									"query": [
+										{
+											"key": "connectorId",
+											"value": "https://connector_A"
+										},
+										{
+											"key": "accessUrl",
+											"value": "https://connectora:8080/api/ids/data"
+										},
+										{
+											"key": "requestedElement",
+											"value": "{{connector_A_resourceCatalog_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "4.2.2 - Connector A - Contract negotiation",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"pm.test(\"Retrieve contractAgreement @id\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"contractAgreementId\", jsonData[\"@id\"]);",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "default"
+									}
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "contractOffer",
+											"value": "{{contractOffer}}",
+											"type": "default"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{TSG_API}}/artifacts/consumer/contractRequest?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data",
+									"host": [
+										"{{TSG_API}}"
+									],
+									"path": [
+										"artifacts",
+										"consumer",
+										"contractRequest"
+									],
+									"query": [
+										{
+											"key": "connectorId",
+											"value": "https://connector_A"
+										},
+										{
+											"key": "accessUrl",
+											"value": "https://connectora:8080/api/ids/data"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "4.2.3 - Connector A - Retrieve artifact",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"pm.test(\"Check type of data\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.type).to.eql(\"FeatureCollection\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "default"
+									}
+								],
+								"url": {
+									"raw": "{{TSG_API}}/artifacts/consumer/artifact?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data&transferContract={{contractAgreementId}}&artifact={{artifactId}}",
+									"host": [
+										"{{TSG_API}}"
+									],
+									"path": [
+										"artifacts",
+										"consumer",
+										"artifact"
+									],
+									"query": [
+										{
+											"key": "connectorId",
+											"value": "https://connector_A"
+										},
+										{
+											"key": "accessUrl",
+											"value": "https://connectora:8080/api/ids/data"
+										},
+										{
+											"key": "transferContract",
+											"value": "{{contractAgreementId}}"
+										},
+										{
+											"key": "artifact",
+											"value": "{{artifactId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "5. Interacting with the MetaData Broker",
+			"item": [
+				{
+					"name": "5.1. Query the Self-description of the MetaData Broker",
+					"item": [
+						{
+							"name": "5.1.1 - Broker",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"pm.test(\"Check connector @id\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData[\"@id\"]).to.eql(\"https://localhost/\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "default"
+									}
+								],
+								"url": {
+									"raw": "{{TSG_API}}/description?connectorId=https://localhost/&accessUrl=https://broker-reverseproxy/infrastructure",
+									"host": [
+										"{{TSG_API}}"
+									],
+									"path": [
+										"description"
+									],
+									"query": [
+										{
+											"key": "connectorId",
+											"value": "https://localhost/"
+										},
+										{
+											"key": "accessUrl",
+											"value": "https://broker-reverseproxy/infrastructure"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "5.2. Query the MetaData Broker for Available Connectors in the Testbed",
+					"item": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "TSG_API",
+			"value": "http://localhost:8082/api",
+			"type": "default"
+		},
+		{
+			"key": "connector_A_resourceCatalog_id",
+			"value": ""
+		},
+		{
+			"key": "resourceId",
+			"value": ""
+		},
+		{
+			"key": "artifactId",
+			"value": ""
+		},
+		{
+			"key": "permissions",
+			"value": ""
+		},
+		{
+			"key": "contractOffer",
+			"value": ""
+		},
+		{
+			"key": "contractAgreementId",
+			"value": ""
+		}
+	]
+}

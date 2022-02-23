@@ -1,0 +1,46 @@
+broker:
+  address: https://broker-reverseproxy/infrastructure
+  autoRegister: true
+  id: https://tno.nl/ids/broker
+daps:
+  url: http://omejdn:4567
+  verification: IDSA
+idscp:
+  enabled: false
+info:
+  securityProfile: BASE_SECURITY_PROFILE
+  accessUrl: http://localhost:8083/router
+  curator: https://tno.nl/ids/tno/participants/TNOConsumer
+  descriptions:
+  - TNO Consumer
+  idsid: https://tno.nl/ids/tno/connectors/TNOConsumer
+  maintainer: https://tno.nl/ids/tno/participants/TNOConsumer
+  titles:
+  - TNO Consumer
+keystore:
+  pem:
+    cert: file:/config/testbed6.crt
+    key: file:/config/testbed6.key
+  type: PEM
+orchestrationManagerConfig:
+  enableKubernetes: false
+  pullSecretName: ids-pull-secret
+routes:
+  genericCamelPort: 8083
+  egress:
+    http:
+    - endpoint: https_out
+      listenPort: 8083
+#security: FIXME
+#  enabled: true
+#  users:
+#    - id: testbed
+#      password: $2a$12$p5qKKFzrUwj9fnZrWfemmubi6HjKSQ7rXKk8KVhkR.lSbRhRRs9x.
+#      roles:
+#        - ADMIN
+truststore:
+  pem:
+    chain: file:/config/cachain.pem
+  type: ACCEPT_ALL
+workflow:
+  useOrchestration: false
