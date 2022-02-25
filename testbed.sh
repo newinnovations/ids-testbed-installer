@@ -5,11 +5,11 @@
 # Martin van der Werff (martin.vanderwerff (at) tno.nl)
 
 echo
-echo "d888888b d8b   db  .d88b."
+echo "d888888b d8b   db  .d88b.                             TNO"
 echo "\`~~88~~' 888o  88 .8P  Y8."
 echo "   88    88V8o 88 88    88   Netherlands Organisation for Applied Scientific Research"
 echo "   88    88 V8o88 88    88"
-echo "   88    88  V888 \`8b  d8'               IDSA TESTBED CONTROL SCRIPT"
+echo "   88    88  V888 \`8b  d8'                 IDSA TESTBED CONTROL SCRIPT"
 echo "   YP    VP   V8P  \`Y88P'"
 echo
 
@@ -20,7 +20,7 @@ function usage() {
 	echo
 	echo "Usage:"
 	echo
-	echo "  ./testbed.sh [options] start|stop|clean"
+	echo "  ./testbed.sh [options] start|stop|clean|tsg"
 	echo
 	echo
 	echo "  start (default)"
@@ -126,6 +126,27 @@ function run() {
 	fi
 }
 
+function await() {
+	CONDITION="$1"
+	CMD="$2"
+
+	eval "${CMD}"
+	if [ $? -eq 0 ]; then
+		echo "Condition already met: ${CONDITION}"
+	else
+		echo "Waiting for: ${CONDITION}"
+		while : ; do
+			echo -n "."
+			eval "${CMD}"
+			if [ $? -eq 0 ]; then
+				echo " READY"
+				break;
+			fi
+			sleep 1
+		done
+	fi
+}
+
 function client_id() {
 	local CERT="$(openssl x509 -in "${TB_GIT}/CertificateAuthority/data/cert/$1.crt" -text)"
 	local SKI="$(echo "$CERT" | grep -A1 "Subject Key Identifier" | tail -n 1 | tr -d ' ')"
@@ -202,10 +223,9 @@ if [ "x$INSTALL_REQUIREMENTS" == "x1" ]; then
 	else
 		echo "PROBLEM: $USER not in docker group"
 		sudo usermod -aG docker $USER
-		echo "Added $USER to docker group, MUST RESTART to take effect"
+		echo "Added $USER to docker group, must RESTART to take effect"
 		exit 1
 	fi
-
 
 
 	bar
@@ -351,31 +371,8 @@ if [[ "$OPERATION" == "start" ]]; then
 
 	bar
 
-	echo "Waiting for Dataspace connector A to be available"
-	while : ; do
-		echo -n "."
-		curl -k -s "https://localhost:8080" > /dev/null
-		if [ $? -eq 0 ]; then
-			echo
-			echo "Dataspace connector A is available"
-			break;
-		fi
-		sleep 1
-	done
-
-	echo
-
-	echo "Waiting for Dataspace connector B to be available"
-	while : ; do
-		echo -n "."
-		curl -k -s "https://localhost:8081" > /dev/null
-		if [ $? -eq 0 ]; then
-			echo
-			echo "Dataspace connector B is available"
-			break;
-		fi
-		sleep 1
-	done
+	await 'Connector A available' 'curl -k -s "https://localhost:8080" > /dev/null'
+	await 'Connector B available' 'curl -k -s "https://localhost:8081" > /dev/null'
 
 	bar
 
@@ -403,38 +400,15 @@ if [[ "$OPERATION" == "tsg" ]]; then
 		docker pull ${TSG}
 	fi
 
-	run "tsg" "${TSG}" "TNO Secure Gateway" "-v ${PWD}/tsg:/config -p 8082:8082 -p 8083:8083" "${TB_NETWORK}"
+	run "tsg" "${TSG}" "TNO Secure Gateway" "-v ${PWD}/tsg/config:/config -v ${PWD}/tsg/certificates:/secrets -p 8082:8082 -p 8083:8083" "${TB_NETWORK}"
 fi
 
 if [[ "$OPERATION" == "tsg" && "$TEST" == "1" ]]; then
 
 	bar
 
-	echo "Waiting for TNO Secure Gateway to be available"
-	while : ; do
-		echo -n "."
-		curl -k -s "http://localhost:8082/health" > /dev/null
-		if [ $? -eq 0 ]; then
-			echo
-			echo "TNO Secure Gateway is available"
-			break;
-		fi
-		sleep 1
-	done
-
-	echo
-
-	echo "Awaiting broker registration"
-	while : ; do
-		echo -n "."
-		docker logs tsg 2>&1 | grep -q 'Successful Broker registration'
-		if [ $? -eq 0 ]; then
-			echo
-			echo "TNO Secure Gateway registered with broker"
-			break;
-		fi
-		sleep 1
-	done
+	await 'TNO Secure Gateway available' 'curl -k -s "http://localhost:8082/health" > /dev/null'
+	await 'Successful Broker registration' "docker logs tsg 2>&1 | grep -q 'Successful Broker registration'"
 
 	bar
 
@@ -444,5 +418,5 @@ if [[ "$OPERATION" == "tsg" && "$TEST" == "1" ]]; then
 
 	#docker rm newman > /dev/null 2>&1
 	#docker run --rm --network=host --name newman -v ${TB_GIT}:/etc/newman -t postman/newman run TestbedPreconfiguration.postman_collection.json --folder Preconfiguration
-	docker run --rm --network=host --name newman -v ${PWD}/tsg:/etc/newman -t postman/newman run 'IDSA Testbed - TSG.postman_collection.json'
+	docker run --rm --network=host --name newman -v ${PWD}/tsg/tests:/etc/newman -t postman/newman run 'IDSA Testbed - TSG.postman_collection.json'
 fi

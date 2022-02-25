@@ -6,6 +6,64 @@
 	},
 	"item": [
 		{
+			"name": "0. TSG Api Setup",
+			"item": [
+				{
+					"name": "0.1. Login & retrieve token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Extract token\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"TSG_TOKEN\", jsonData.token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "username",
+									"value": "{{TSG_USERNAME}}",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "{{TSG_PASSWORD}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{TSG_API}}/auth/signin",
+							"host": [
+								"{{TSG_API}}"
+							],
+							"path": [
+								"auth",
+								"signin"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "4. Interacting with Connectors",
 			"item": [
 				{
@@ -45,11 +103,12 @@
 									}
 								],
 								"url": {
-									"raw": "{{TSG_API}}/description?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data",
+									"raw": "{{TSG_API}}/api/description?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data",
 									"host": [
 										"{{TSG_API}}"
 									],
 									"path": [
+										"api",
 										"description"
 									],
 									"query": [
@@ -95,11 +154,12 @@
 									}
 								],
 								"url": {
-									"raw": "{{TSG_API}}/description?connectorId=https://connector_B&accessUrl=https://connectorb:8081/api/ids/data",
+									"raw": "{{TSG_API}}/api/description?connectorId=https://connector_B&accessUrl=https://connectorb:8081/api/ids/data",
 									"host": [
 										"{{TSG_API}}"
 									],
 									"path": [
+										"api",
 										"description"
 									],
 									"query": [
@@ -159,11 +219,12 @@
 									}
 								],
 								"url": {
-									"raw": "{{TSG_API}}/description?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data&requestedElement={{connector_A_resourceCatalog_id}}",
+									"raw": "{{TSG_API}}/api/description?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data&requestedElement={{connector_A_resourceCatalog_id}}",
 									"host": [
 										"{{TSG_API}}"
 									],
 									"path": [
+										"api",
 										"description"
 									],
 									"query": [
@@ -224,11 +285,12 @@
 									]
 								},
 								"url": {
-									"raw": "{{TSG_API}}/artifacts/consumer/contractRequest?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data",
+									"raw": "{{TSG_API}}/api/artifacts/consumer/contractRequest?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data",
 									"host": [
 										"{{TSG_API}}"
 									],
 									"path": [
+										"api",
 										"artifacts",
 										"consumer",
 										"contractRequest"
@@ -276,11 +338,12 @@
 									}
 								],
 								"url": {
-									"raw": "{{TSG_API}}/artifacts/consumer/artifact?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data&transferContract={{contractAgreementId}}&artifact={{artifactId}}",
+									"raw": "{{TSG_API}}/api/artifacts/consumer/artifact?connectorId=https://connector_A&accessUrl=https://connectora:8080/api/ids/data&transferContract={{contractAgreementId}}&artifact={{artifactId}}",
 									"host": [
 										"{{TSG_API}}"
 									],
 									"path": [
+										"api",
 										"artifacts",
 										"consumer",
 										"artifact"
@@ -346,11 +409,12 @@
 									}
 								],
 								"url": {
-									"raw": "{{TSG_API}}/description?connectorId=https://localhost/&accessUrl=https://broker-reverseproxy/infrastructure",
+									"raw": "{{TSG_API}}/api/description?connectorId=https://localhost/&accessUrl=https://broker-reverseproxy/infrastructure",
 									"host": [
 										"{{TSG_API}}"
 									],
 									"path": [
+										"api",
 										"description"
 									],
 									"query": [
@@ -370,12 +434,102 @@
 					]
 				},
 				{
-					"name": "5.2. Query the MetaData Broker for Available Connectors in the Testbed",
-					"item": []
+					"name": "5.2. + 5.3. Query the MetaData Broker for Available Connectors in the Testbed",
+					"item": [
+						{
+							"name": "5.2.1 - Broker query all connectors",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"pm.test(\"Check availablity Connector A\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData[\"@graph\"].filter((graph) => graph.sameAs === \"https://connector_A\").length).to.eql(1);",
+											"});",
+											"pm.test(\"Check availablity Connector B\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData[\"@graph\"].filter((graph) => graph.sameAs === \"https://connector_B\").length).to.eql(1);",
+											"});",
+											"pm.test(\"Check availablity TSG\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData[\"@graph\"].filter((graph) => graph.sameAs === \"https://tno.nl/ids/tno/connectors/TNOConsumer\").length).to.eql(1);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "default"
+									}
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "query",
+											"value": "PREFIX ids: <https://w3id.org/idsa/core/>\nDESCRIBE * WHERE {\n    GRAPH ?g {\n        ?s ?p ?o.\n    }\n}\n",
+											"type": "default"
+										},
+										{
+											"key": "queryLanguage",
+											"value": "SPARQL",
+											"type": "default"
+										},
+										{
+											"key": "queryScope",
+											"value": "ACTIVE_ONLY",
+											"type": "default"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{TSG_API}}/api/query?connectorId=https://localhost/&accessUrl=https://broker-reverseproxy/infrastructure",
+									"host": [
+										"{{TSG_API}}"
+									],
+									"path": [
+										"api",
+										"query"
+									],
+									"query": [
+										{
+											"key": "connectorId",
+											"value": "https://localhost/"
+										},
+										{
+											"key": "accessUrl",
+											"value": "https://broker-reverseproxy/infrastructure"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
 				}
 			]
 		}
 	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{TSG_TOKEN}}",
+				"type": "string"
+			}
+		]
+	},
 	"event": [
 		{
 			"listen": "prerequest",
@@ -399,7 +553,7 @@
 	"variable": [
 		{
 			"key": "TSG_API",
-			"value": "http://localhost:8082/api",
+			"value": "http://localhost:8082",
 			"type": "default"
 		},
 		{
@@ -425,6 +579,21 @@
 		{
 			"key": "contractAgreementId",
 			"value": ""
+		},
+		{
+			"key": "TSG_USERNAME",
+			"value": "testbed",
+			"type": "default"
+		},
+		{
+			"key": "TSG_PASSWORD",
+			"value": "testbed",
+			"type": "default"
+		},
+		{
+			"key": "TSG_TOKEN",
+			"value": "",
+			"type": "default"
 		}
 	]
 }

@@ -19,8 +19,8 @@ info:
   - TNO Consumer
 keystore:
   pem:
-    cert: file:/config/testbed6.crt
-    key: file:/config/testbed6.key
+    cert: file:/secrets/testbed6.crt
+    key: file:/secrets/testbed6.key
   type: PEM
 orchestrationManagerConfig:
   enableKubernetes: false
@@ -31,16 +31,17 @@ routes:
     http:
     - endpoint: https_out
       listenPort: 8083
-#security: FIXME
-#  enabled: true
-#  users:
-#    - id: testbed
-#      password: $2a$12$p5qKKFzrUwj9fnZrWfemmubi6HjKSQ7rXKk8KVhkR.lSbRhRRs9x.
-#      roles:
-#        - ADMIN
+security:
+  enabled: true
+  users:
+    - id: testbed
+      password: $2a$12$p5qKKFzrUwj9fnZrWfemmubi6HjKSQ7rXKk8KVhkR.lSbRhRRs9x.
+      roles:
+        - ARTIFACT_CONSUMER
+        - DESCRIPTION_READER
 truststore:
   pem:
-    chain: file:/config/cachain.pem
-  type: ACCEPT_ALL
+    chain: file:/secrets/cachain.pem
+  type: ACCEPT_ALL # FIXME
 workflow:
   useOrchestration: false
