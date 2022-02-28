@@ -20,6 +20,7 @@ Usage:
     Builds testbed component docker images (if not available) and starts testbed
 
     -r --install-requirements  install required ubuntu packages
+    -d --detached              run in background (for use in terminal)
     -t --test                  run full test (otherwise only do 'Preconfiguration')
 
 
@@ -30,8 +31,9 @@ Usage:
 
   tsg
 
-    Start TNO Secure Gateway (TSG)
+    Start TNO Security Gateway (TSG)
 
+    -d --detached              run in background (for use in terminal)
     -t --test                  run tests
 
 

@@ -28,6 +28,7 @@ function usage() {
 	echo "    Builds testbed component docker images (if not available) and starts testbed"
 	echo
 	echo "    -r --install-requirements  install required ubuntu packages"
+	echo "    -d --detached              run in background (for use in terminal)"
 	echo "    -t --test                  run full test (otherwise only do 'Preconfiguration')"
 	echo
 	echo
@@ -38,8 +39,9 @@ function usage() {
 	echo
 	echo "  tsg"
 	echo
-	echo "    Start TNO Secure Gateway (TSG)"
+	echo "    Start TNO Security Gateway (TSG)"
 	echo
+	echo "    -d --detached              run in background (for use in terminal)"
 	echo "    -t --test                  run tests"
 	echo
 	echo
@@ -67,6 +69,7 @@ git submodule update
 INSTALL_REQUIREMENTS=0
 TEST=0
 CLEAN_PRUNE=0
+DETACHED=0
 OPERATION=start
 
 while [[ $# -gt 0 ]]; do
@@ -81,6 +84,10 @@ while [[ $# -gt 0 ]]; do
 			;;
 		-p|--prune)
 			CLEAN_PRUNE=1
+			shift
+			;;
+		-d|--detached)
+			DETACHED=1
 			shift
 			;;
 		start|stop|clean|tsg)
@@ -103,6 +110,7 @@ done
 bar
 echo "INSTALL REQUIREMENTS = ${INSTALL_REQUIREMENTS}"
 echo "TEST                 = ${TEST}"
+echo "DETACHED             = ${DETACHED}"
 echo "PRUNE                = ${CLEAN_PRUNE}"
 echo "OPERATION            = ${OPERATION}"
 bar
@@ -119,8 +127,12 @@ function run() {
 			docker rm ${INSTANCE} > /dev/null
 		fi
 		echo "Starting ${TITLE}"
-		gnome-terminal --title "${TITLE}" -- sh -c "docker run --rm --name ${INSTANCE} ${COMMAND} --network=${NETWORK} ${IMAGE}"
-		#gnome-terminal --title "${TITLE}" -- sh -c "docker run --rm --name ${INSTANCE} ${COMMAND} --network=${NETWORK} ${IMAGE}; sleep 30"
+		if [[ "$DETACHED" == "1" ]]; then
+			docker run --detach --rm --name "${INSTANCE}" ${COMMAND} --network="${NETWORK}" "${IMAGE}"
+		else
+			gnome-terminal --title "${TITLE}" -- sh -c "docker run --rm --name ${INSTANCE} ${COMMAND} --network=${NETWORK} ${IMAGE}"
+			#gnome-terminal --title "${TITLE}" -- sh -c "docker run --rm --name ${INSTANCE} ${COMMAND} --network=${NETWORK} ${IMAGE}; sleep 30"
+		fi
 	else
 		echo "${TITLE} already running"
 	fi
@@ -359,7 +371,11 @@ if [[ "$OPERATION" == "start" ]]; then
 		echo "  default:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
 		echo "    external: true" >> "${PWD}/config/${BROKER}/docker-compose.yml"
 		echo "    name: ${TB_NETWORK}" >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		gnome-terminal --title "BROKER" -- sh -c "cd ${PWD}/config/${BROKER}; docker-compose up"
+		if [[ "$DETACHED" == "1" ]]; then
+			sh -c "cd ${PWD}/config/${BROKER}; docker-compose up --detach"
+		else
+			gnome-terminal --title "BROKER" -- sh -c "cd ${PWD}/config/${BROKER}; docker-compose up"
+		fi
 	else
 		echo "BROKER already running"
 	fi
@@ -400,14 +416,14 @@ if [[ "$OPERATION" == "tsg" ]]; then
 		docker pull ${TSG}
 	fi
 
-	run "tsg" "${TSG}" "TNO Secure Gateway" "-v ${PWD}/tsg/config:/config -v ${PWD}/tsg/certificates:/secrets -p 8082:8082 -p 8083:8083" "${TB_NETWORK}"
+	run "tsg" "${TSG}" "TNO Security Gateway" "-v ${PWD}/tsg/config:/config -v ${PWD}/tsg/certificates:/secrets -p 8082:8082 -p 8083:8083" "${TB_NETWORK}"
 fi
 
 if [[ "$OPERATION" == "tsg" && "$TEST" == "1" ]]; then
 
 	bar
 
-	await 'TNO Secure Gateway available' 'curl -k -s "http://localhost:8082/health" > /dev/null'
+	await 'TNO Security Gateway available' 'curl -k -s "http://localhost:8082/health" > /dev/null'
 	await 'Successful Broker registration' "docker logs tsg 2>&1 | grep -q 'Successful Broker registration'"
 
 	bar
