@@ -53,8 +53,8 @@ function usage() {
 	echo
 }
 
-export PWD="$(dirname $(readlink -f $0))"
-export TB_GIT="${PWD}/IDS-testbed"
+export TB_DIR="$(dirname $(readlink -f $0))"
+export TB_GIT="${TB_DIR}/IDS-testbed"
 
 export TB_COUNTRY=NL
 export TB_ORGANIZATION=TNO
@@ -62,7 +62,7 @@ export TB_NETWORK=ids-testbed
 
 export TSG="docker.nexus.dataspac.es/core-container:feature-infomodel-4.2.7"
 
-cd $PWD
+cd $TB_DIR
 git submodule init
 git submodule update
 
@@ -263,7 +263,7 @@ if [[ "$OPERATION" == "stop" || "$OPERATION" == "clean" ]]; then
 
 	docker stop tsg
 
-	cd "${PWD}/config/broker-localhost"
+	cd "${TB_DIR}/config/broker-localhost"
 	docker-compose down
 fi
 
@@ -363,18 +363,18 @@ if [[ "$OPERATION" == "start" ]]; then
 	if [ ! "$(docker ps -q -f name=broker-core)" ]; then
 		echo "Starting BROKER"
 		BROKER=broker-localhost
-		mkdir -p "${PWD}/config/${BROKER}"
-		cp "${TB_GIT}/MetadataBroker/docker/composefiles/broker-localhost/docker-compose.yml" "${PWD}/config/${BROKER}/docker-compose.yml"
-		sed -i "s/version: '3'/version: '3.7'/" "${PWD}/config/${BROKER}/docker-compose.yml"
-		echo >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		echo "networks:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		echo "  default:" >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		echo "    external: true" >> "${PWD}/config/${BROKER}/docker-compose.yml"
-		echo "    name: ${TB_NETWORK}" >> "${PWD}/config/${BROKER}/docker-compose.yml"
+		mkdir -p "${TB_DIR}/config/${BROKER}"
+		cp "${TB_GIT}/MetadataBroker/docker/composefiles/broker-localhost/docker-compose.yml" "${TB_DIR}/config/${BROKER}/docker-compose.yml"
+		sed -i "s/version: '3'/version: '3.7'/" "${TB_DIR}/config/${BROKER}/docker-compose.yml"
+		echo >> "${TB_DIR}/config/${BROKER}/docker-compose.yml"
+		echo "networks:" >> "${TB_DIR}/config/${BROKER}/docker-compose.yml"
+		echo "  default:" >> "${TB_DIR}/config/${BROKER}/docker-compose.yml"
+		echo "    external: true" >> "${TB_DIR}/config/${BROKER}/docker-compose.yml"
+		echo "    name: ${TB_NETWORK}" >> "${TB_DIR}/config/${BROKER}/docker-compose.yml"
 		if [[ "$DETACHED" == "1" ]]; then
-			sh -c "cd ${PWD}/config/${BROKER}; docker-compose up --detach"
+			sh -c "cd ${TB_DIR}/config/${BROKER}; docker-compose up --detach"
 		else
-			gnome-terminal --title "BROKER" -- sh -c "cd ${PWD}/config/${BROKER}; docker-compose up"
+			gnome-terminal --title "BROKER" -- sh -c "cd ${TB_DIR}/config/${BROKER}; docker-compose up"
 		fi
 	else
 		echo "BROKER already running"
@@ -416,7 +416,7 @@ if [[ "$OPERATION" == "tsg" ]]; then
 		docker pull ${TSG}
 	fi
 
-	run "tsg" "${TSG}" "TNO Security Gateway" "-v ${PWD}/tsg/config:/config -v ${PWD}/tsg/certificates:/secrets -p 8082:8082 -p 8083:8083" "${TB_NETWORK}"
+	run "tsg" "${TSG}" "TNO Security Gateway" "-v ${TB_DIR}/tsg/config:/config -v ${TB_DIR}/tsg/certificates:/secrets -p 8082:8082 -p 8083:8083" "${TB_NETWORK}"
 fi
 
 if [[ "$OPERATION" == "tsg" && "$TEST" == "1" ]]; then
@@ -434,5 +434,5 @@ if [[ "$OPERATION" == "tsg" && "$TEST" == "1" ]]; then
 
 	#docker rm newman > /dev/null 2>&1
 	#docker run --rm --network=host --name newman -v ${TB_GIT}:/etc/newman -t postman/newman run TestbedPreconfiguration.postman_collection.json --folder Preconfiguration
-	docker run --rm --network=host --name newman -v ${PWD}/tsg/tests:/etc/newman -t postman/newman run 'IDSA Testbed - TSG.postman_collection.json'
+	docker run --rm --network=host --name newman -v ${TB_DIR}/tsg/tests:/etc/newman -t postman/newman run 'IDSA Testbed - TSG.postman_collection.json'
 fi
