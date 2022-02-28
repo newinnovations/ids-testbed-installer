@@ -304,7 +304,7 @@ export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
 if [[ "$OPERATION" == "start" ]]; then
 
-	if docker images | grep -q daps; then
+	if [ "$(docker images -q daps)" != "" ]; then
 		echo "DAPS already available as docker image"
 	else
 		echo "Building DAPS docker image"
@@ -312,7 +312,7 @@ if [[ "$OPERATION" == "start" ]]; then
 		docker build -t daps .
 	fi
 
-	if docker images | grep -q dsca; then
+	if [ "$(docker images -q dsca)" != "" ]; then
 		echo "Connector A already available as docker image"
 	else
 		echo "Building Connector A docker image"
@@ -320,7 +320,7 @@ if [[ "$OPERATION" == "start" ]]; then
 		docker build -t dsca .
 	fi
 
-	if docker images | grep -q dscb; then
+	if [ "$(docker images -q dscb)" != "" ]; then
 		echo "Connector B already available as docker image"
 	else
 		echo "Building Connector B docker image"
@@ -343,7 +343,7 @@ if [[ "$OPERATION" == "start" ]]; then
 		cd ../../broker-core
 		docker build -t registry.gitlab.cc-asp.fraunhofer.de/eis-ids/broker-open/core .
 	else
-		echo "Metadata broker available as docker images"
+		echo "Metadata broker already available as docker image"
 	fi
 
 	if [ ! "$(docker network ls -q -f name=${TB_NETWORK})" ]; then
@@ -409,10 +409,10 @@ fi
 
 if [[ "$OPERATION" == "tsg" ]]; then
 
-	if docker images | grep -q core-container; then
-		echo "TSG already available as docker image"
+	if [ "$(docker images -q $TSG)" != "" ]; then
+		echo "TNO Security Gateway already available as docker image"
 	else
-		echo "Pulling docker image"
+		echo "Pulling docker image TNO Security Gateway"
 		docker pull ${TSG}
 	fi
 
