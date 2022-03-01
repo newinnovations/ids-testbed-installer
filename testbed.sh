@@ -387,6 +387,8 @@ if [[ "$OPERATION" == "start" ]]; then
 
 	bar
 
+	await 'DAPS available' 'curl -k -s "http://localhost:4567" > /dev/null'
+	await 'Metadata Broker available' 'curl -k -s "https://localhost" > /dev/null'
 	await 'Connector A available' 'curl -k -s "https://localhost:8080" > /dev/null'
 	await 'Connector B available' 'curl -k -s "https://localhost:8081" > /dev/null'
 
@@ -432,7 +434,5 @@ if [[ "$OPERATION" == "tsg" && "$TEST" == "1" ]]; then
 		docker pull postman/newman
 	fi
 
-	#docker rm newman > /dev/null 2>&1
-	#docker run --rm --network=host --name newman -v ${TB_GIT}:/etc/newman -t postman/newman run TestbedPreconfiguration.postman_collection.json --folder Preconfiguration
 	docker run --rm --network=host --name newman -v ${TB_DIR}/tsg/tests:/etc/newman -t postman/newman run 'IDSA Testbed - TSG.postman_collection.json'
 fi

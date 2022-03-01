@@ -15,7 +15,7 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
+									"pm.test(\"Status code should be 200\", function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
 									"pm.test(\"Extract token\", function () {",
@@ -76,14 +76,14 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
+											"pm.test(\"Status code should be 200\", function () {",
 											"    pm.response.to.have.status(200);",
 											"});",
-											"pm.test(\"Check connector @id\", function () {",
+											"pm.test(\"Check connectorId\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.expect(jsonData[\"@id\"]).to.eql(\"https://connector_A\");",
 											"});",
-											"pm.test(\"Extract resourceCatalog @id\", function () {",
+											"pm.test(\"Extract resourceCatalogId\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.collectionVariables.set(\"connector_A_resourceCatalog_id\", jsonData[\"ids:resourceCatalog\"][0][\"@id\"]);",
 											"});",
@@ -132,10 +132,10 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
+											"pm.test(\"Status code should be 200\", function () {",
 											"    pm.response.to.have.status(200);",
 											"});",
-											"pm.test(\"Check connector @id\", function () {",
+											"pm.test(\"Check connectorId\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.expect(jsonData[\"@id\"]).to.eql(\"https://connector_B\");",
 											"});"
@@ -188,10 +188,10 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
+											"pm.test(\"Status code should be 200\", function () {",
 											"    pm.response.to.have.status(200);",
 											"});",
-											"pm.test(\"Retrieve resource metadata\", function () {",
+											"pm.test(\"Retrieve resource metadata (resourceId, artifactId and contractOffer)\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.collectionVariables.set(\"resourceId\", jsonData[\"ids:offeredResource\"][0][\"@id\"]);",
 											"    pm.collectionVariables.set(\"artifactId\", jsonData[\"ids:offeredResource\"][0][\"ids:representation\"][0][\"ids:instance\"][0][\"@id\"]);",
@@ -252,10 +252,10 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
+											"pm.test(\"Status code should be 200\", function () {",
 											"    pm.response.to.have.status(200);",
 											"});",
-											"pm.test(\"Retrieve contractAgreement @id\", function () {",
+											"pm.test(\"Retrieve contractAgreementId\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.collectionVariables.set(\"contractAgreementId\", jsonData[\"@id\"]);",
 											"});",
@@ -316,10 +316,10 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
+											"pm.test(\"Status code should be 200\", function () {",
 											"    pm.response.to.have.status(200);",
 											"});",
-											"pm.test(\"Check type of data\", function () {",
+											"pm.test(\"Check type of data to be FeatureCollection\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.expect(jsonData.type).to.eql(\"FeatureCollection\");",
 											"});"
@@ -387,10 +387,10 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
+											"pm.test(\"Status code should be 200\", function () {",
 											"    pm.response.to.have.status(200);",
 											"});",
-											"pm.test(\"Check connector @id\", function () {",
+											"pm.test(\"Check connectorId of the broker\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.expect(jsonData[\"@id\"]).to.eql(\"https://localhost/\");",
 											"});"
@@ -443,18 +443,18 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
+											"pm.test(\"Status code should be 200\", function () {",
 											"    pm.response.to.have.status(200);",
 											"});",
-											"pm.test(\"Check availablity Connector A\", function () {",
+											"pm.test(\"Check Connector A is available in broker\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.expect(jsonData[\"@graph\"].filter((graph) => graph.sameAs === \"https://connector_A\").length).to.eql(1);",
 											"});",
-											"pm.test(\"Check availablity Connector B\", function () {",
+											"pm.test(\"Check Connector B is available in broker\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.expect(jsonData[\"@graph\"].filter((graph) => graph.sameAs === \"https://connector_B\").length).to.eql(1);",
 											"});",
-											"pm.test(\"Check availablity TSG\", function () {",
+											"pm.test(\"Check TNO Security Gateway is available in broker\", function () {",
 											"    var jsonData = pm.response.json();",
 											"    pm.expect(jsonData[\"@graph\"].filter((graph) => graph.sameAs === \"https://tno.nl/ids/tno/connectors/TNOConsumer\").length).to.eql(1);",
 											"});"
